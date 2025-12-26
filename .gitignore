@@ -17,3 +17,8 @@ vendor/
 
 # Go workspace file
 go.work
+
+# Test directories
+test-specs/
+specs/
+.specify/
