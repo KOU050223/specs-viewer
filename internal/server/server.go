@@ -11,22 +11,22 @@ import (
 	"strings"
 
 	"github.com/gorilla/websocket"
-	"github.com/yourusername/specs-viewer/internal/parser"
-	"github.com/yourusername/specs-viewer/internal/watcher"
+	"github.com/KOU050223/specs-viewer/internal/parser"
+	"github.com/KOU050223/specs-viewer/internal/watcher"
 )
 
 type Server struct {
 	port      int
-	specPath  string
+	specPaths []string
 	templates embed.FS
 	watcher   *watcher.FileWatcher
 	upgrader  websocket.Upgrader
 }
 
-func New(port int, specPath string, templates embed.FS, fw *watcher.FileWatcher) *Server {
+func New(port int, specPaths []string, templates embed.FS, fw *watcher.FileWatcher) *Server {
 	return &Server{
 		port:      port,
-		specPath:  specPath,
+		specPaths: specPaths,
 		templates: templates,
 		watcher:   fw,
 		upgrader: websocket.Upgrader{
@@ -56,7 +56,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]interface{}{
 		"Title": "Specs Viewer",
-		"Path":  s.specPath,
+		"Paths": s.specPaths,
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {
@@ -65,14 +65,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
-	tree, err := parser.ParseDirectory(s.specPath)
+	trees, err := parser.ParseMultipleDirectories(s.specPaths)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(tree)
+	json.NewEncoder(w).Encode(trees)
 }
 
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
@@ -82,20 +82,26 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Security check: ensure the file is within the spec directory
+	// Security check: ensure the file is within one of the spec directories
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		http.Error(w, "Invalid path", http.StatusBadRequest)
 		return
 	}
 
-	absSpecPath, err := filepath.Abs(s.specPath)
-	if err != nil {
-		http.Error(w, "Invalid spec path", http.StatusInternalServerError)
-		return
+	allowed := false
+	for _, specPath := range s.specPaths {
+		absSpecPath, err := filepath.Abs(specPath)
+		if err != nil {
+			continue
+		}
+		if strings.HasPrefix(absPath, absSpecPath) {
+			allowed = true
+			break
+		}
 	}
 
-	if !strings.HasPrefix(absPath, absSpecPath) {
+	if !allowed {
 		http.Error(w, "Access denied", http.StatusForbidden)
 		return
 	}

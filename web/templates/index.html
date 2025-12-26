@@ -277,8 +277,15 @@
         async function loadTree() {
             try {
                 const response = await fetch('/api/tree');
-                const tree = await response.json();
-                renderTree(tree, treeContainer);
+                const trees = await response.json();
+
+                // Clear container
+                treeContainer.innerHTML = '';
+
+                // Render each tree
+                trees.forEach(tree => {
+                    renderTree(tree, treeContainer);
+                });
             } catch (error) {
                 console.error('Error loading tree:', error);
             }

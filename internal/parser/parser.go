@@ -43,6 +43,20 @@ func ParseDirectory(rootPath string) (*SpecTree, error) {
 	return root, nil
 }
 
+func ParseMultipleDirectories(paths []string) ([]*SpecTree, error) {
+	var trees []*SpecTree
+
+	for _, path := range paths {
+		tree, err := ParseDirectory(path)
+		if err != nil {
+			return nil, err
+		}
+		trees = append(trees, tree)
+	}
+
+	return trees, nil
+}
+
 func walkDir(dirPath string, node *SpecTree) error {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {

@@ -17,6 +17,10 @@ type FileWatcher struct {
 }
 
 func New(path string) (*FileWatcher, error) {
+	return NewMulti([]string{path})
+}
+
+func NewMulti(paths []string) (*FileWatcher, error) {
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		return nil, err
@@ -27,9 +31,11 @@ func New(path string) (*FileWatcher, error) {
 		listeners: make([]chan string, 0),
 	}
 
-	if err := fw.addRecursive(path); err != nil {
-		watcher.Close()
-		return nil, err
+	for _, path := range paths {
+		if err := fw.addRecursive(path); err != nil {
+			watcher.Close()
+			return nil, err
+		}
 	}
 
 	go fw.watch()
